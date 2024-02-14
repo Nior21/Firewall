@@ -22,14 +22,6 @@
 
 <body>
     <ul class="address-list" id="addressList">
-        <li class="address-item">
-            <span>192.168.1.1</span>
-            <input type="checkbox">
-        </li>
-        <li class="address-item">
-            <span>dns.example.com</span>
-            <input type="checkbox">
-        </li>
     </ul>
     <form id="addAddressForm">
         <input type="text" id="newAddress" class="address-input" placeholder="Введите новый IP или DNS адрес">
@@ -46,18 +38,25 @@
             const input = document.getElementById('newAddress').value.trim();
             if (input) {
                 const addresses = input.split(/[\s,]+/).filter(Boolean);
-                const addressList = document.getElementById('addressList');
-
-                addresses.forEach(address => {
-                    if (!isAlreadyAdded(address)) {
-                        const newItem = document.createElement('li');
-                        newItem.classList.add('address-item');
-                        newItem.innerHTML = `
-                            <span>${address}</span>
-                            <input type="checkbox">
-                        `;
-                        addressList.appendChild(newItem);
+                fetch('/addresses', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        addresses: addresses
+                    })
+                }).then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    } else {
+                        throw new Error('Ошибка добавления адресов: ' + response.statusText);
                     }
+                }).then(data => {
+                    console.log('Успешное добавление адресов:', data);
+                    fetchAddresses();
+                }).catch(error => {
+                    console.error('Ошибка:', error);
                 });
                 document.getElementById('newAddress').value = '';
             } else {
@@ -65,16 +64,28 @@
             }
         }
 
-        function isAlreadyAdded(address) {
-            const items = document.querySelectorAll('.address-item > span');
-            for (let i = 0; i < items.length; i++) {
-                if (items[i].textContent.trim() === address) {
-                    alert('Адрес уже добавлен: ' + address);
-                    return true;
-                }
-            }
-            return false;
+        function fetchAddresses() {
+            fetch('/addresses')
+                .then(response => response.json())
+                .then(data => {
+                    const addressList = document.getElementById('addressList');
+                    addressList.innerHTML = '';
+                    data.addresses.forEach(item => {
+                        const newItem = document.createElement('li');
+                        newItem.classList.add('address-item');
+                        newItem.innerHTML = `
+                            <span>${item.address}</span>
+                            <input type="checkbox" ${item.status === 'enabled' ? 'checked' : ''}>
+                        `;
+                        addressList.appendChild(newItem);
+                    });
+                })
+                .catch(error => {
+                    console.error('Ошибка:', error);
+                });
         }
+
+        fetchAddresses();
     </script>
 </body>
 

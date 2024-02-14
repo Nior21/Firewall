@@ -1,49 +1,59 @@
+// app.js
 const express = require('express');
+const sqlite3 = require('sqlite3').verbose();
 const bodyParser = require('body-parser');
-const {
-    exec
-} = require('child_process');
 
 const app = express();
 app.use(express.static('public'));
 app.use(bodyParser.json());
 
-const blockedAddresses = new Set();
+const db = new sqlite3.Database('addresses.db', (err) => {
+    if (err) {
+        console.error(err.message);
+    } else {
+        console.log('Connected to the addresses database.');
+    }
+});
 
 app.post('/addresses', (req, res) => {
     const addresses = req.body.addresses;
     addresses.forEach(address => {
-        if (blockedAddresses.has(address)) {
-            // Удаление правила, если уже заблокирован
-            blockedAddresses.delete(address);
-            exec(`netsh advfirewall firewall delete rule name="Block: ${address}"`, (error, stdout, stderr) => {
-                if (error) {
-                    console.error(`Ошибка выполнения команды: ${error}`);
-                    res.status(500).json({
-                        error: `Ошибка выполнения команды: ${stderr}`
-                    });
-                } else {
-                    console.log(`Команда выполнена успешно: ${stdout}`);
-                    res.json({
-                        message: 'Адрес успешно удален из списка заблокированных'
-                    });
-                }
-            });
+        const stmt = db.prepare('INSERT INTO addresses(address, status) VALUES(?, ?)');
+        stmt.run(address, 'enabled');
+        stmt.finalize();
+    });
+    res.json({
+        message: 'Адреса успешно добавлены в базу данных'
+    });
+});
+
+app.get('/addresses', (req, res) => {
+    db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='addresses'", (err, row) => {
+        if (err) {
+            throw err;
+        }
+        if (!row) {
+            console.log('Таблица addresses не существует, создаем...');
+            db.run("CREATE TABLE addresses (address TEXT, status TEXT)");
+            res.json({
+                addresses: []
+            }); // Пустой массив, так как таблица только что создана
         } else {
-            // Добавление нового правила
-            blockedAddresses.add(address);
-            exec(`netsh advfirewall firewall add rule name="Block: ${address}" dir=out interface=any action=block remoteip=${address}`, (error, stdout, stderr) => {
-                if (error) {
-                    console.error(`Ошибка выполнения команды: ${error}`);
-                    res.status(500).json({
-                        error: `Ошибка выполнения команды: ${stderr}`
-                    });
-                } else {
-                    console.log(`Команда выполнена успешно: ${stdout}`);
-                    res.json({
-                        message: 'Адрес успешно добавлен в список заблокированных'
-                    });
+            let sql = 'SELECT address, status FROM addresses';
+            let addresses = [];
+            db.all(sql, [], (err, rows) => {
+                if (err) {
+                    throw err;
                 }
+                rows.forEach(row => {
+                    addresses.push({
+                        address: row.address,
+                        status: row.status
+                    });
+                });
+                res.json({
+                    addresses: addresses
+                });
             });
         }
     });
