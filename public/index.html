@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        .address-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ip-address {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .ip {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="address-list">
+        <!-- Список адресов будет добавлен здесь -->
+    </div>
+    <input type="text" id="newAddress" placeholder="Введите новый IP-адрес" style="margin-top: 10px;">
+
+    <script>
+        function addAddress() {
+            var input = document.getElementById('newAddress').value.trim();
+            var addresses = input.split(/[\s,]+/).filter(Boolean);
+            // Отправка списка адресов на сервер
+            fetch('/addresses', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    addresses: addresses
+                })
+            }).then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    throw new Error('Ошибка добавления адресов: ' + response.statusText);
+                }
+            }).then(data => {
+                // Получение данных успешного сохранения адресов
+                console.log('Успешное добавление адресов:', data);
+            }).catch(error => {
+                console.error('Ошибка:', error);
+            });
+            document.getElementById('newAddress').value = '';
+        }
+    </script>
+    <script>
+        document.getElementById('newAddress').addEventListener('keyup', function (event) {
+            if (event.key === 'Enter') {
+                addAddress();
+            }
+        });
+    </script>
+
+
+</body>
+
+</html>
