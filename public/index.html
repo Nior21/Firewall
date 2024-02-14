@@ -4,65 +4,78 @@
 <head>
     <style>
         .address-list {
-            display: flex;
-            flex-direction: column;
+            list-style: none;
+            padding: 0;
         }
 
-        .ip-address {
+        .address-item {
             display: flex;
             align-items: center;
             margin-bottom: 10px;
         }
 
-        .ip {
-            margin-right: 10px;
+        .address-input {
+            margin-bottom: 10px;
         }
     </style>
 </head>
 
 <body>
-    <div class="address-list">
-        <!-- Список адресов будет добавлен здесь -->
-    </div>
-    <input type="text" id="newAddress" placeholder="Введите новый IP-адрес" style="margin-top: 10px;">
+    <ul class="address-list" id="addressList">
+        <li class="address-item">
+            <span>192.168.1.1</span>
+            <input type="checkbox">
+        </li>
+        <li class="address-item">
+            <span>dns.example.com</span>
+            <input type="checkbox">
+        </li>
+    </ul>
+    <form id="addAddressForm">
+        <input type="text" id="newAddress" class="address-input" placeholder="Введите новый IP или DNS адрес">
+        <button type="submit">+</button>
+    </form>
 
     <script>
+        document.getElementById('addAddressForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+            addAddress();
+        });
+
         function addAddress() {
-            var input = document.getElementById('newAddress').value.trim();
-            var addresses = input.split(/[\s,]+/).filter(Boolean);
-            // Отправка списка адресов на сервер
-            fetch('/addresses', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    addresses: addresses
-                })
-            }).then(response => {
-                if (response.ok) {
-                    return response.json();
-                } else {
-                    throw new Error('Ошибка добавления адресов: ' + response.statusText);
+            const input = document.getElementById('newAddress').value.trim();
+            if (input) {
+                const addresses = input.split(/[\s,]+/).filter(Boolean);
+                const addressList = document.getElementById('addressList');
+
+                addresses.forEach(address => {
+                    if (!isAlreadyAdded(address)) {
+                        const newItem = document.createElement('li');
+                        newItem.classList.add('address-item');
+                        newItem.innerHTML = `
+                            <span>${address}</span>
+                            <input type="checkbox">
+                        `;
+                        addressList.appendChild(newItem);
+                    }
+                });
+                document.getElementById('newAddress').value = '';
+            } else {
+                alert('Введите хотя бы один IP или DNS адрес');
+            }
+        }
+
+        function isAlreadyAdded(address) {
+            const items = document.querySelectorAll('.address-item > span');
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].textContent.trim() === address) {
+                    alert('Адрес уже добавлен: ' + address);
+                    return true;
                 }
-            }).then(data => {
-                // Получение данных успешного сохранения адресов
-                console.log('Успешное добавление адресов:', data);
-            }).catch(error => {
-                console.error('Ошибка:', error);
-            });
-            document.getElementById('newAddress').value = '';
+            }
+            return false;
         }
     </script>
-    <script>
-        document.getElementById('newAddress').addEventListener('keyup', function (event) {
-            if (event.key === 'Enter') {
-                addAddress();
-            }
-        });
-    </script>
-
-
 </body>
 
 </html>
