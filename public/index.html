@@ -141,11 +141,12 @@
                                         onchange="updateStatus('${item.address}', this)">
                                     <div class="toggle-track"></div>
                                     <div class="toggle-handle"></div>
-                                    <span class="address-text">${item.address}</span>
-                                    <div class="delete-button" onclick="deleteAddress('${item.address}')">❌</div>
                                 </label>
+                                <span class="address-text">${item.address}</span>
+                                <div class="delete-button" onclick="deleteAddress(event, '${item.address}')">❌</div>
                             </form>
                         `;
+
                         addressList.appendChild(newItem);
                     });
                 })
@@ -174,11 +175,12 @@
                 })
                 .catch(error => {
                     // Обработка ошибок
-                    console.log(data)
+                    console.log(error)
                 });
         }
 
-        function deleteAddress(address) {
+        function deleteAddress(event, address) {
+            event.stopPropagation(); // Остановить распространение события
             fetch('/deleteAddress', {
                 method: 'POST',
                 headers: {
@@ -189,12 +191,12 @@
                 .then(response => response.json())
                 .then(data => {
                     // обработка успешного удаления
-                    console.log('Адрес успешно удален', data);
+                    console.log(`Адрес успешно удален (${data})`);
                     fetchAddresses();
                 })
                 .catch(error => {
                     // обработка ошибок удаления
-                    console.error('Ошибка при удалении адреса', error);
+                    console.error(`Ошибка при удалении адреса (${error})`);
                 });
         }
 
