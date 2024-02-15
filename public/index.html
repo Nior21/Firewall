@@ -12,15 +12,13 @@
             display: flex;
             align-items: center;
             margin-bottom: 10px;
+            position: relative;
         }
 
         .toggle-container {
             margin-right: 10px;
-            /* Добавляем отступ справа от переключателя */
             display: flex;
-            /* Чтобы переключатель и текст выровнялись по вертикали */
             align-items: center;
-            /* Чтобы переключатель и текст выровнялись по вертикали */
             position: relative;
         }
 
@@ -57,6 +55,27 @@
 
         .address-text {
             font-size: 16px;
+        }
+
+        .delete-button {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            display: none;
+            cursor: pointer;
+            content: '❌';
+            /* использование символа Х в красном кружке */
+            background-color: rgba(255, 0, 0, 0.5);
+            color: #fff;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 20px;
+        }
+
+        .item-form:hover .delete-button {
+            display: block;
         }
     </style>
 </head>
@@ -116,18 +135,16 @@
                         const newItem = document.createElement('li');
                         newItem.classList.add('address-item');
                         newItem.innerHTML = `
-                        <form id="${item.address}" class="item-form">
-                            <label class="toggle-container">
-                                <input type="checkbox" class="toggle-input" ${item.status == 1 ? 'checked' : ''}
-                                    onchange="updateStatus('${item.address}', this)">
-                                <div class="toggle-track">
-                                    
-                                </div>
-                                <div class="toggle-handle"></div>
-                                
-                                <span class="address-text">${item.address}</span>
-                            </label>
-                        </form>
+                            <form id="${item.address}" class="item-form">
+                                <label class="toggle-container">
+                                    <input type="checkbox" class="toggle-input" ${item.status == 1 ? 'checked' : ''} 
+                                        onchange="updateStatus('${item.address}', this)">
+                                    <div class="toggle-track"></div>
+                                    <div class="toggle-handle"></div>
+                                    <span class="address-text">${item.address}</span>
+                                    <div class="delete-button" onclick="deleteAddress('${item.address}')">❌</div>
+                                </label>
+                            </form>
                         `;
                         addressList.appendChild(newItem);
                     });
@@ -158,6 +175,26 @@
                 .catch(error => {
                     // Обработка ошибок
                     console.log(data)
+                });
+        }
+
+        function deleteAddress(address) {
+            fetch('/deleteAddress', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ address: address }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    // обработка успешного удаления
+                    console.log('Адрес успешно удален', data);
+                    fetchAddresses();
+                })
+                .catch(error => {
+                    // обработка ошибок удаления
+                    console.error('Ошибка при удалении адреса', error);
                 });
         }
 

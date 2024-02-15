@@ -15,6 +15,38 @@ const db = new sqlite3.Database('addresses.db', (err) => {
     }
 });
 
+app.get('/addresses', (req, res) => {
+    db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='addresses'", (err, row) => {
+        if (err) {
+            throw err;
+        }
+        if (!row) {
+            console.log('Таблица addresses не существует, создаем...');
+            db.run("CREATE TABLE addresses (address TEXT, status TEXT)");
+            res.json({
+                addresses: []
+            }); // Пустой массив, так как таблица только что создана
+        } else {
+            let sql = 'SELECT address, status FROM addresses';
+            let addresses = [];
+            db.all(sql, [], (err, rows) => {
+                if (err) {
+                    throw err;
+                }
+                rows.forEach(row => {
+                    addresses.push({
+                        address: row.address,
+                        status: row.status
+                    });
+                });
+                res.json({
+                    addresses: addresses
+                });
+            });
+        }
+    });
+});
+
 app.post('/addresses', async (req, res) => {
     const addresses = req.body.addresses;
     for (const address of addresses) {
@@ -49,7 +81,6 @@ app.post('/addresses', async (req, res) => {
 });
 
 
-
 app.post('/updateStatus', (req, res) => {
     const address = req.body.address;
     const status = req.body.status; // Получаем статус напрямую
@@ -69,34 +100,14 @@ app.post('/updateStatus', (req, res) => {
 });
 
 
-app.get('/addresses', (req, res) => {
-    db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='addresses'", (err, row) => {
+app.post('/deleteAddress', (req, res) => {
+    const address = req.body.address;
+    // выполнить SQL-запрос для удаления указанного адреса
+    db.run('DELETE FROM addresses WHERE address = ?', address, function(err) {
         if (err) {
-            throw err;
-        }
-        if (!row) {
-            console.log('Таблица addresses не существует, создаем...');
-            db.run("CREATE TABLE addresses (address TEXT, status TEXT)");
-            res.json({
-                addresses: []
-            }); // Пустой массив, так как таблица только что создана
+            res.status(500).json({ message: 'Произошла ошибка при удалении адреса' });
         } else {
-            let sql = 'SELECT address, status FROM addresses';
-            let addresses = [];
-            db.all(sql, [], (err, rows) => {
-                if (err) {
-                    throw err;
-                }
-                rows.forEach(row => {
-                    addresses.push({
-                        address: row.address,
-                        status: row.status
-                    });
-                });
-                res.json({
-                    addresses: addresses
-                });
-            });
+            res.json({ message: 'Адрес успешно удален' });
         }
     });
 });
