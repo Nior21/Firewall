@@ -19,13 +19,32 @@ app.post('/addresses', (req, res) => {
     const addresses = req.body.addresses;
     addresses.forEach(address => {
         const stmt = db.prepare('INSERT INTO addresses(address, status) VALUES(?, ?)');
-        stmt.run(address, 'enabled');
+        stmt.run(address, false);
         stmt.finalize();
     });
     res.json({
         message: 'Адреса успешно добавлены в базу данных'
     });
 });
+
+app.post('/updateStatus', (req, res) => {
+    const address = req.body.address;
+    const status = req.body.status; // Получаем статус напрямую
+    const stmt = db.prepare('UPDATE addresses SET status = ? WHERE address = ?');
+    stmt.run(status, address, (err) => {
+        if (err) {
+            res.status(500).json({
+                message: 'Произошла ошибка при обновлении статуса'
+            });
+        } else {
+            res.json({
+                message: 'Статус успешно обновлен'
+            });
+        }
+    });
+    stmt.finalize();
+});
+
 
 app.get('/addresses', (req, res) => {
     db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='addresses'", (err, row) => {

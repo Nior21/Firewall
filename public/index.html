@@ -8,20 +8,62 @@
             padding: 0;
         }
 
-        .address-item {
+        .item-form {
             display: flex;
             align-items: center;
             margin-bottom: 10px;
         }
 
-        .address-input {
-            margin-bottom: 10px;
+        .toggle-container {
+            margin-right: 10px;
+            /* Добавляем отступ справа от переключателя */
+            display: flex;
+            /* Чтобы переключатель и текст выровнялись по вертикали */
+            align-items: center;
+            /* Чтобы переключатель и текст выровнялись по вертикали */
+            position: relative;
+        }
+
+        .toggle-input {
+            display: none;
+        }
+
+        .toggle-track {
+            width: 60px;
+            height: 34px;
+            background-color: red;
+            border-radius: 17px;
+            cursor: pointer;
+        }
+
+        .toggle-handle {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 30px;
+            height: 30px;
+            background-color: white;
+            border-radius: 15px;
+            transition: transform 0.3s;
+        }
+
+        .toggle-input:checked+.toggle-track {
+            background-color: green;
+        }
+
+        .toggle-input:checked+.toggle-track+.toggle-handle {
+            transform: translateX(26px);
+        }
+
+        .address-text {
+            font-size: 16px;
         }
     </style>
 </head>
 
 <body>
     <ul class="address-list" id="addressList">
+        <!-- Your address items will be added here -->
     </ul>
     <form id="addAddressForm">
         <input type="text" id="newAddress" class="address-input" placeholder="Введите новый IP или DNS адрес">
@@ -74,14 +116,48 @@
                         const newItem = document.createElement('li');
                         newItem.classList.add('address-item');
                         newItem.innerHTML = `
-                            <span>${item.address}</span>
-                            <input type="checkbox" ${item.status === 'enabled' ? 'checked' : ''}>
+                        <form id="${item.address}" class="item-form">
+                            <label class="toggle-container">
+                                <input type="checkbox" class="toggle-input" ${item.status == 1 ? 'checked' : ''}
+                                    onchange="updateStatus('${item.address}', this)">
+                                <div class="toggle-track">
+                                    
+                                </div>
+                                <div class="toggle-handle"></div>
+                                
+                                <span class="address-text">${item.address}</span>
+                            </label>
+                        </form>
                         `;
                         addressList.appendChild(newItem);
                     });
                 })
                 .catch(error => {
                     console.error('Ошибка:', error);
+                });
+        }
+
+
+
+        function updateStatus(address, object) {
+            fetch('/updateStatus', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    address: address,
+                    status: object.checked
+                }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    // В случае успеха, вы можете выполнить какие-либо дополнительные действия или обновить данные на странице
+                    console.log(data, "status: ", object.checked);
+                })
+                .catch(error => {
+                    // Обработка ошибок
+                    console.log(data)
                 });
         }
 
