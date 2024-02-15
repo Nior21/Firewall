@@ -92,7 +92,7 @@
                     if (response.ok) {
                         return response.json();
                     } else {
-                        throw new Error('Ошибка добавления адресов: ' + response.statusText);
+                        console.error('Ошибка добавления адресов: ' + response.statusText);
                     }
                 }).then(data => {
                     console.log('Успешное добавление адресов:', data);

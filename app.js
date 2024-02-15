@@ -15,17 +15,40 @@ const db = new sqlite3.Database('addresses.db', (err) => {
     }
 });
 
-app.post('/addresses', (req, res) => {
+app.post('/addresses', async (req, res) => {
     const addresses = req.body.addresses;
-    addresses.forEach(address => {
-        const stmt = db.prepare('INSERT INTO addresses(address, status) VALUES(?, ?)');
-        stmt.run(address, false);
-        stmt.finalize();
-    });
-    res.json({
-        message: 'Адреса успешно добавлены в базу данных'
-    });
+    for (const address of addresses) {
+        try {
+            const row = await new Promise((resolve, reject) => {
+                db.get('SELECT * FROM addresses WHERE address = ?', address, (err, row) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(row);
+                    }
+                });
+            });
+            if (row) {
+                return res.status(409).json({ message: 'Адрес уже существует в базе данных' });
+            } else {
+                await new Promise((resolve, reject) => {
+                    db.run('INSERT INTO addresses (address, status) VALUES (?, ?)', [address, false], (err) => {
+                        if (err) {
+                            reject(err);
+                        } else {
+                            resolve();
+                        }
+                    });
+                });
+            }
+        } catch (err) {
+            return res.status(500).json({ message: 'Произошла ошибка при обработке запроса' });
+        }
+    }
+    res.json({ message: 'Адреса успешно добавлены в базу данных' });
 });
+
+
 
 app.post('/updateStatus', (req, res) => {
     const address = req.body.address;
