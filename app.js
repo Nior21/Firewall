@@ -2,6 +2,7 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const bodyParser = require('body-parser');
+const { exec } = require('child_process');
 
 const app = express();
 app.use(express.static('public'));
@@ -25,7 +26,7 @@ app.get('/addresses', (req, res) => {
             db.run("CREATE TABLE addresses (address TEXT, status TEXT)");
             res.json({
                 addresses: []
-            }); // Пустой массив, так как таблица только что создана
+            });
         } else {
             let sql = 'SELECT address, status FROM addresses';
             let addresses = [];
@@ -83,27 +84,46 @@ app.post('/addresses', async (req, res) => {
 
 app.post('/updateStatus', (req, res) => {
     const address = req.body.address;
-    const status = req.body.status; // Получаем статус напрямую
-    const stmt = db.prepare('UPDATE addresses SET status = ? WHERE address = ?');
-    stmt.run(status, address, (err) => {
-        if (err) {
-            res.status(500).json({
-                message: 'Произошла ошибка при обновлении статуса'
-            });
-        } else {
-            res.json({
-                message: 'Статус успешно обновлен'
-            });
-        }
-    });
-    stmt.finalize();
+    const status = req.body.status;
+
+    // Проверка входных данных
+    if (!address || typeof status !== 'boolean') {
+        res.status(400).json({ message: 'Некорректные вводные данные' });
+        return;
+    }
+
+    const isIP = address.match(/^(\d{1,3}\.){3}\d{1,3}$/);
+
+    if (isIP) {
+        const typeOfOperation = status ? "добавления" : "удаления";
+        const command = status ?
+            `netsh advfirewall firewall add rule name="Block: ${address}" dir=out interface=any action=block remoteip=${address}` :
+            `netsh advfirewall firewall delete rule name="Block: ${address}"`;
+        exec(command, (error, stdout, stderr) => {
+            if (error) {
+                res.status(500).json({ message: `Ошибка ${typeOfOperation} правил Firewall.` });
+            } else {
+                const stmt = db.prepare('UPDATE addresses SET status = ? WHERE address = ?');
+                stmt.run(status, address, (err) => {
+                    if (err) {
+                        res.status(500).json({ message: 'Правило добавлено в Firewall, но произошла ошибка при сохранении статуса в БД' });
+                    } else {
+                        res.json({ message: 'Операция ${typeOfOperation} правила Firewall прошло успешно. Запись об этом сохранена в БД' });
+                    }
+                });
+                stmt.finalize();
+            }
+        });
+    } else {
+        res.status(400).send("Ошибка: Вместо DNS следует использовать IP-адреса.");
+    }
 });
 
 
 app.post('/deleteAddress', (req, res) => {
     const address = req.body.address;
     // выполнить SQL-запрос для удаления указанного адреса
-    db.run('DELETE FROM addresses WHERE address = ?', address, function(err) {
+    db.run('DELETE FROM addresses WHERE address = ?', address, function (err) {
         if (err) {
             res.status(500).json({ message: 'Произошла ошибка при удалении адреса' });
         } else {
