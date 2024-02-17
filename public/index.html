@@ -170,11 +170,9 @@
             })
                 .then(response => response.json())
                 .then(data => {
-                    // В случае успеха, вы можете выполнить какие-либо дополнительные действия или обновить данные на странице
                     console.log(JSON.stringify(data));
                 })
                 .catch(error => {
-                    // Обработка ошибок
                     console.log(JSON.stringify(error));
                 });
         }

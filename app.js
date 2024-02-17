@@ -84,15 +84,8 @@ app.post('/addresses', async (req, res) => {
 });
 
 function isIP(address) {
-    return new Promise((resolve) => {
-        dns.lookup(address, { all: false, verbatim: false, family: 0, hints: 0, all: false }, (err) => {
-            if (err) {
-                resolve(false); // Это не IP-адрес
-            } else {
-                resolve(true); // Это IP-адрес
-            }
-        });
-    });
+    const ipPattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+    return ipPattern.test(address);
 }
 
 app.post('/updateStatus', async (req, res) => {
@@ -100,50 +93,44 @@ app.post('/updateStatus', async (req, res) => {
     const status = req.body.status;
 
     // Проверка входных данных
-    if (!address || typeof status !== 'boolean') {
-        return res.status(400).json({ message: 'Некорректные вводные данные' });
+    if (!address || typeof status !== 'boolean' || !isIP(address)) {
+        return res.status(400).json({ message: 'Переданы некорректные данные. Ожидается IP-адрес.' });
     }
 
-    try {
-        const isIPAddress = await isIP(address);
+    // Проверка существующих правил через PowerShell
+    const checkExistingCommand = `powershell -command "& {(Get-NetFirewallRule -DisplayName 'Block: ${address}').Count}"`;
 
-        const typeOfOperation = status ? "добавления" : "удаления";
-        const checkCommand = `netsh advfirewall firewall show rule name="Block: ${address}"`;
+    exec(checkExistingCommand, (err, stdout, stderr) => {
+        if (err) {
+            return res.status(500).json({ message: 'Ошибка при проверке существующих правил Firewall.' });
+        }
 
-        exec(checkCommand, (checkError, checkStdout, checkStderr) => {
-            if (!checkError) {
-                if (status && (checkStdout.includes("Rule Name") || checkStdout.includes("Имя правила"))) {
-                    return res.status(400).json({ message: 'Правило с таким именем уже существует в Firewall. Добавление невозможно.' });
-                } else if (!status && !(checkStdout.includes("Rule Name") || checkStdout.includes("Имя правила"))) {
-                    return res.status(400).json({ message: 'Правило с таким именем не существует в Firewall. Удаление невозможно.' });
+        if (parseInt(stdout.trim()) > 0 && status) {
+            return res.json({ message: 'Правило с таким именем уже существует в Firewall. Добавление не требуется.' });
+        } else if (parseInt(stdout.trim()) === 0 && !status) {
+            return res.json({ message: 'Правил с таким именем нет в Firewall. Удаление не требуется.' });
+        } else {
+            const command = status ?
+                `netsh advfirewall firewall add rule name="Block: ${address}" dir=out interface=any action=block remoteip=${address}` :
+                `netsh advfirewall firewall delete rule name="Block: ${address}"`;
+
+            exec(command, (error) => {
+                if (error) {
+                    return res.status(500).json({ message: `Ошибка при ${status ? 'добавлении' : 'удалении'} правила Firewall.` });
                 } else {
-                    const command = status ?
-                        `netsh advfirewall firewall add rule name="Block: ${address}" dir=out interface=any action=block remoteip=${address}` :
-                        `netsh advfirewall firewall delete rule name="Block: ${address}"`;
-
-                    exec(command, (error) => {
-                        if (error) {
-                            return res.status(500).json({ message: `Ошибка ${typeOfOperation} правила Firewall.` });
+                    const stmt = db.prepare('UPDATE addresses SET status = ? WHERE address = ?');
+                    stmt.run(status, address, (err) => {
+                        if (err) {
+                            res.status(500).json({ message: `Произошла ошибка при обновлении статуса в БД.` });
                         } else {
-                            const stmt = db.prepare('UPDATE addresses SET status = ? WHERE address = ?');
-                            stmt.run(status, address, (err) => {
-                                if (err) {
-                                    res.status(500).json({ message: 'Правило добавлено в Firewall, но произошла ошибка при сохранении статуса в БД' });
-                                } else {
-                                    res.json({ message: `Операция ${typeOfOperation} правила Firewall прошло успешно. Запись об этом сохранена в БД` });
-                                }
-                            });
-                            stmt.finalize();
+                            res.json({ message: `Операция ${status ? 'добавления' : 'удаления'} правила Firewall прошла успешно. Статус обновлен в БД.` });
                         }
                     });
+                    stmt.finalize();
                 }
-            } else {
-                return res.status(500).json({ message: 'Ошибка при проверке существующих правил Firewall.' });
-            }
-        });
-    } catch (error) {
-        return res.status(400).send("Ошибка: Вместо DNS следует использовать IP-адреса.");
-    }
+            });
+        }
+    });
 });
 
 
