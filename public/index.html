@@ -1,89 +1,68 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        .address-list {
-            list-style: none;
-            padding: 0;
+        .table {
+            width: 100%;
+            border: none;
+            margin-bottom: 20px;
         }
 
-        .item-form {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-            position: relative;
+        .table thead th {
+            font-weight: bold;
+            text-align: left;
+            border: none;
+            padding: 10px 15px;
+            background: #d8d8d8;
+            font-size: 14px;
         }
 
-        .toggle-container {
-            margin-right: 10px;
-            display: flex;
-            align-items: center;
-            position: relative;
+        .table thead tr th:first-child {
+            border-radius: 8px 0 0 8px;
         }
 
-        .toggle-input {
-            display: none;
+        .table thead tr th:last-child {
+            border-radius: 0 8px 8px 0;
         }
 
-        .toggle-track {
-            width: 60px;
-            height: 34px;
-            background-color: red;
-            border-radius: 17px;
-            cursor: pointer;
+        .table tbody td {
+            text-align: left;
+            border: none;
+            padding: 10px 15px;
+            font-size: 14px;
+            vertical-align: top;
         }
 
-        .toggle-handle {
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 30px;
-            height: 30px;
-            background-color: white;
-            border-radius: 15px;
-            transition: transform 0.3s;
+        .even {
+            background: #f3f3f3;
         }
 
-        .toggle-input:checked+.toggle-track {
-            background-color: green;
+        first-cell {
+            border-radius: 8px 0 0 8px;
         }
 
-        .toggle-input:checked+.toggle-track+.toggle-handle {
-            transform: translateX(26px);
-        }
-
-        .address-text {
-            font-size: 16px;
-        }
-
-        .delete-button {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 20px;
-            height: 20px;
-            display: none;
-            cursor: pointer;
-            content: '❌';
-            /* использование символа Х в красном кружке */
-            background-color: rgba(255, 0, 0, 0.5);
-            color: #fff;
-            border-radius: 50%;
-            text-align: center;
-            line-height: 20px;
-        }
-
-        .item-form:hover .delete-button {
-            display: block;
+        .last-cell {
+            border-radius: 0 8px 8px 0;
         }
     </style>
 </head>
 
 <body>
-    <ul class="address-list" id="addressList">
-        <!-- Your address items will be added here -->
-    </ul>
+    <table class="table" id="addressTable">
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>Address</th>
+                <th>Delete</th>
+            </tr>
+        </thead>
+        <tbody id="addressList">
+            <!-- Existing or dynamically added rows will go here -->
+        </tbody>
+    </table>
     <form id="addAddressForm">
         <input type="text" id="newAddress" class="address-input" placeholder="Введите новый IP или DNS адрес">
         <button type="submit">+</button>
@@ -126,28 +105,42 @@
         }
 
         function fetchAddresses() {
+            const addressTable = document.createElement('table');
+            addressTable.classList.add('table');
+
             fetch('/addresses')
                 .then(response => response.json())
                 .then(data => {
-                    const addressList = document.getElementById('addressList');
-                    addressList.innerHTML = '';
-                    data.addresses.forEach(item => {
-                        const newItem = document.createElement('li');
-                        newItem.classList.add('address-item');
-                        newItem.innerHTML = `
-                            <form id="${item.address}" class="item-form">
-                                <label class="toggle-container">
-                                    <input type="checkbox" class="toggle-input" ${item.status == 1 ? 'checked' : ''} 
-                                        onchange="updateStatus('${item.address}', this)">
-                                    <div class="toggle-track"></div>
-                                    <div class="toggle-handle"></div>
-                                </label>
-                                <span class="address-text">${item.address}</span>
-                                <div class="delete-button" onclick="deleteAddress(event, '${item.address}')">❌</div>
-                            </form>
-                        `;
+                    const addressTable = document.getElementById('addressList');
+                    addressTable.innerHTML = '';
+                    data.addresses.forEach((item, index) => {
+                        const newRow = document.createElement('tr');
+                        newRow.classList.add(index % 2 === 0 ? 'even' : 'odd');
 
-                        addressList.appendChild(newItem);
+                        const statusCell = document.createElement('td');
+                        statusCell.classList.add('first-cell');
+                        const statusToggle = document.createElement('input');
+                        statusToggle.id = item.address;
+                        statusToggle.type = 'checkbox';
+                        statusToggle.checked = item.status === 1;
+                        statusToggle.addEventListener('change', () => updateStatus(item.address, statusToggle));
+                        statusCell.appendChild(statusToggle);
+
+                        const addressCell = document.createElement('td');
+                        addressCell.textContent = item.address;
+
+                        const deleteCell = document.createElement('td');
+                        deleteCell.classList.add('last-cell');
+                        const deleteButton = document.createElement('div');
+                        deleteButton.textContent = '❌';
+                        deleteButton.addEventListener('click', (event) => deleteAddress(event, item.address));
+                        deleteCell.appendChild(deleteButton);
+
+                        newRow.appendChild(statusCell);
+                        newRow.appendChild(addressCell);
+                        newRow.appendChild(deleteCell);
+
+                        addressTable.appendChild(newRow);
                     });
                 })
                 .catch(error => {
