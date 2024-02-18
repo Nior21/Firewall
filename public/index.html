@@ -4,24 +4,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.cdnfonts.com/css/pt-mono" rel="stylesheet">
     <style>
         .table {
-            width: 100%;
-            border: none;
-            margin-bottom: 20px;
+            width: 95%;
+            border-collapse: collapse;
+            font-family: 'PT Mono', sans-serif;
+            margin: 2.5%;
+        }
+
+        .tr {
+            border-spacing: 0 2px;
+
         }
 
         .table thead th {
             font-weight: bold;
             text-align: left;
             border: none;
-            padding: 10px 15px;
+            padding: 7px;
             background: #d8d8d8;
             font-size: 14px;
         }
 
         .table thead tr th:first-child {
             border-radius: 8px 0 0 8px;
+            margin: 0;
+            width: 10px;
         }
 
         .table thead tr th:last-child {
@@ -31,21 +40,85 @@
         .table tbody td {
             text-align: left;
             border: none;
-            padding: 10px 15px;
             font-size: 14px;
-            vertical-align: top;
+            vertical-align: middle;
         }
 
         .even {
             background: #f3f3f3;
         }
 
-        first-cell {
+        .first-cell {
             border-radius: 8px 0 0 8px;
+            width: 10px;
+            cursor: pointer;
         }
 
         .last-cell {
             border-radius: 0 8px 8px 0;
+            cursor: pointer;
+        }
+
+        .address-cell {
+            position: relative;
+            width: 100%;
+        }
+
+        .address-text {
+            display: inline-block;
+            width: 90%;
+        }
+
+        .delete-div {
+            content: '❌';
+            display: none;
+            position: absolute;
+            right: 0;
+            cursor: pointer;
+            text-align: right;
+        }
+
+        .address-cell:hover .delete-div {
+            display: inline-block;
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+
+        .toggle-input {
+            display: none;
+        }
+
+        .toggle-track {
+            width: 40px;
+            height: 19px;
+            background-color: red;
+            border-radius: 17px;
+            cursor: pointer;
+        }
+
+        .toggle-handle {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 15px;
+            height: 15px;
+            background-color: white;
+            border-radius: 15px;
+            transition: transform 0.3s;
+        }
+
+        .toggle-input:checked+.toggle-track {
+            background-color: green;
+        }
+
+        .toggle-input:checked+.toggle-track+.toggle-handle {
+            transform: translateX(21px);
+
+
         }
     </style>
 </head>
@@ -54,9 +127,8 @@
     <table class="table" id="addressTable">
         <thead>
             <tr>
-                <th>Status</th>
+                <th></th>
                 <th>Address</th>
-                <th>Delete</th>
             </tr>
         </thead>
         <tbody id="addressList">
@@ -116,29 +188,51 @@
                     data.addresses.forEach((item, index) => {
                         const newRow = document.createElement('tr');
                         newRow.classList.add(index % 2 === 0 ? 'even' : 'odd');
+                        newRow.classList.add('tr');
 
                         const statusCell = document.createElement('td');
                         statusCell.classList.add('first-cell');
+
+                        const toggleContainer = document.createElement('label');
+                        toggleContainer.classList.add('toggle-container');
+
                         const statusToggle = document.createElement('input');
-                        statusToggle.id = item.address;
                         statusToggle.type = 'checkbox';
-                        statusToggle.checked = item.status === 1;
+                        statusToggle.checked = item.status == 1;
+                        statusToggle.classList.add('toggle-input');
                         statusToggle.addEventListener('change', () => updateStatus(item.address, statusToggle));
-                        statusCell.appendChild(statusToggle);
+
+                        const toggleTrack = document.createElement('div');
+                        toggleTrack.classList.add('toggle-track');
+
+                        const toggleHandle = document.createElement('div');
+                        toggleHandle.classList.add('toggle-handle');
+
+                        toggleContainer.appendChild(statusToggle);
+                        toggleContainer.appendChild(toggleTrack);
+                        toggleContainer.appendChild(toggleHandle);
+
+                        statusCell.appendChild(toggleContainer);
 
                         const addressCell = document.createElement('td');
-                        addressCell.textContent = item.address;
+                        addressCell.classList.add('address-cell');
+                        addressCell.classList.add('last-cell');
 
-                        const deleteCell = document.createElement('td');
-                        deleteCell.classList.add('last-cell');
-                        const deleteButton = document.createElement('div');
-                        deleteButton.textContent = '❌';
-                        deleteButton.addEventListener('click', (event) => deleteAddress(event, item.address));
-                        deleteCell.appendChild(deleteButton);
+                        const addressDiv = document.createElement('div');
+                        addressDiv.classList.add('address-text');
+                        addressDiv.textContent = item.address;
+
+                        const deleteDiv = document.createElement('div');
+                        deleteDiv.classList.add('delete-div');
+                        deleteDiv.textContent = '❌';
+                        deleteDiv.style.textAlign = 'right'
+                        deleteDiv.addEventListener('click', (event) => deleteAddress(event, item.address));
+
+                        addressCell.appendChild(addressDiv);
+                        addressCell.appendChild(deleteDiv);
 
                         newRow.appendChild(statusCell);
                         newRow.appendChild(addressCell);
-                        newRow.appendChild(deleteCell);
 
                         addressTable.appendChild(newRow);
                     });
@@ -178,7 +272,7 @@
 
 
         function deleteAddress(event, address) {
-            event.stopPropagation(); // Остановить распространение события
+            event.stopPropagation();
             fetch('/deleteAddress', {
                 method: 'POST',
                 headers: {
@@ -188,12 +282,10 @@
             })
                 .then(response => response.json())
                 .then(data => {
-                    // обработка успешного удаления
                     console.log(`Адрес успешно удален (${data})`);
                     fetchAddresses();
                 })
                 .catch(error => {
-                    // обработка ошибок удаления
                     console.error(`Ошибка при удалении адреса (${error})`);
                 });
         }
