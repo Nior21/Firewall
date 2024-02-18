@@ -15,7 +15,6 @@
 
         .tr {
             border-spacing: 0 2px;
-
         }
 
         .table thead th {
@@ -59,29 +58,6 @@
             cursor: pointer;
         }
 
-        .address-cell {
-            position: relative;
-            width: 100%;
-        }
-
-        .address-text {
-            display: inline-block;
-            width: 90%;
-        }
-
-        .delete-div {
-            content: '❌';
-            display: none;
-            position: absolute;
-            right: 0;
-            cursor: pointer;
-            text-align: right;
-        }
-
-        .address-cell:hover .delete-div {
-            display: inline-block;
-        }
-
         .toggle-container {
             display: flex;
             align-items: center;
@@ -117,8 +93,44 @@
 
         .toggle-input:checked+.toggle-track+.toggle-handle {
             transform: translateX(21px);
+        }
 
+        .address-cell {
+            position: relative;
+            width: 100%;
+        }
 
+        .address-text {
+            display: inline-block;
+            width: 90%;
+        }
+
+        .address-cell:hover .add-app-btn,
+        .address-cell:hover .delete-btn {
+            display: inline-block;
+        }
+
+        .app-container {
+            display: none;
+            margin-top: 10px;
+            flex-direction: column;
+        }
+
+        .actions-container {
+            display: inline-block;
+            position: absolute;
+            right: 0;
+        }
+
+        .delete-btn,
+        .add-app-btn {
+            display: none;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+
+        .add-app-btn:checked .app-container {
+            display: block;
         }
     </style>
 </head>
@@ -197,9 +209,9 @@
                         toggleContainer.classList.add('toggle-container');
 
                         const statusToggle = document.createElement('input');
+                        statusToggle.classList.add('toggle-input');
                         statusToggle.type = 'checkbox';
                         statusToggle.checked = item.status == 1;
-                        statusToggle.classList.add('toggle-input');
                         statusToggle.addEventListener('change', () => updateStatus(item.address, statusToggle));
 
                         const toggleTrack = document.createElement('div');
@@ -222,14 +234,27 @@
                         addressDiv.classList.add('address-text');
                         addressDiv.textContent = item.address;
 
-                        const deleteDiv = document.createElement('div');
-                        deleteDiv.classList.add('delete-div');
-                        deleteDiv.textContent = '❌';
-                        deleteDiv.style.textAlign = 'right'
-                        deleteDiv.addEventListener('click', (event) => deleteAddress(event, item.address));
+                        const addAppBtn = document.createElement('div');
+                        addAppBtn.classList.add("add-app-btn");
+                        addAppBtn.innerHTML = "[+]";
+                        addAppBtn.addEventListener('click', () => openAppInterface());
+
+                        const deleteBtn = document.createElement('div');
+                        deleteBtn.classList.add('delete-btn');
+                        deleteBtn.innerHTML = '[x]';
+                        deleteBtn.addEventListener('click', (event) => deleteAddress(event, item.address));
+
+                        const actionsDiv = document.createElement('div');
+                        actionsDiv.classList.add('actions-container');
+                        actionsDiv.appendChild(addAppBtn);
+                        actionsDiv.appendChild(deleteBtn);
 
                         addressCell.appendChild(addressDiv);
-                        addressCell.appendChild(deleteDiv);
+                        addressCell.appendChild(actionsDiv);
+
+                        const addAppContainer = document.createElement('div');
+                        addAppContainer.classList.add("app-container");
+                        addressCell.appendChild(addAppContainer);
 
                         newRow.appendChild(statusCell);
                         newRow.appendChild(addressCell);
@@ -288,6 +313,10 @@
                 .catch(error => {
                     console.error(`Ошибка при удалении адреса (${error})`);
                 });
+        }
+
+        function openAppInterface() {
+            console.log('updateAppDiv() used')
         }
 
         fetchAddresses();
