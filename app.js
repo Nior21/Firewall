@@ -146,6 +146,51 @@ app.post('/deleteAddress', (req, res) => {
     });
 });
 
+// Маршрут для добавления связанного приложения
+app.post('/related-apps', async (req, res) => {
+    const { ipAddress, appName } = req.body;
+    try {
+        // Проверка наличия таблицы related_apps
+        db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='related_apps'", (err, row) => {
+            if (err) {
+                throw err;
+            }
+            if (!row) {
+                console.log('Таблица related_apps не существует, создаем...');
+                db.run("CREATE TABLE related_apps (ip_address TEXT, app_name TEXT)");
+            }
+            // Добавление связанного приложения
+            db.run('INSERT INTO related_apps (ip_address, app_name) VALUES (?, ?)', [ipAddress, appName], (err) => {
+                if (err) {
+                    res.status(500).json({ message: 'Произошла ошибка при добавлении приложения' });
+                } else {
+                    res.json({ message: 'Приложение успешно добавлено' });
+                }
+            });
+        });
+    } catch (err) {
+        res.status(500).json({ message: 'Произошла ошибка при добавлении приложения' });
+    }
+});
+
+app.get('/related-apps/:ipAddress', (req, res) => {
+    const ipAddress = req.params.ipAddress;
+
+    let sql = 'SELECT app_name FROM related_apps WHERE ip_address = ?';
+    let apps = [];
+
+    db.all(sql, [ipAddress], (err, rows) => {
+        if (err) {
+            res.status(500).json({ message: 'Произошла ошибка при получении связанных приложений' });
+        } else {
+            rows.forEach(row => {
+                apps.push(row.app_name);
+            });
+            res.json({ relatedApps: apps });
+        }
+    });
+});
+
 app.listen(3000, () => {
     console.log('Сервер запущен на порте 3000');
 });

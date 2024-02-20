@@ -6,11 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.cdnfonts.com/css/pt-mono" rel="stylesheet">
     <style>
+        html,
+        body {
+            font-family: 'PT Mono', sans-serif;
+        }
+
+        body {
+            margin: 2.5%;
+        }
+
         .table {
             width: 95%;
             border-collapse: collapse;
-            font-family: 'PT Mono', sans-serif;
-            margin: 2.5%;
         }
 
         .tr {
@@ -40,10 +47,21 @@
             text-align: left;
             border: none;
             font-size: 14px;
-            vertical-align: middle;
+            vertical-align: top;
         }
 
-        .even {
+        .add-new-address-input {
+            font-family: 'PT Mono', sans-serif;
+            width: 85%;
+            padding: 0px;
+            margin: 0px;
+        }
+
+        .add-new-address-button {
+            margin: 0px;
+        }
+
+        .odd {
             background: #f3f3f3;
         }
 
@@ -62,6 +80,7 @@
             display: flex;
             align-items: center;
             position: relative;
+            display: flex;
         }
 
         .toggle-input {
@@ -98,40 +117,50 @@
         .address-cell {
             position: relative;
             width: 100%;
+            display: flex;
         }
 
         .address-text {
             display: inline-block;
             width: 90%;
-        }
-
-        .address-cell:hover .add-app-btn,
-        .address-cell:hover .delete-btn {
-            display: inline-block;
-        }
-
-        .app-container {
-            display: none;
-            margin-top: 10px;
-            flex-direction: column;
+            display: flex;
         }
 
         .actions-container {
             display: inline-block;
             position: absolute;
             right: 0;
+            display: flex;
         }
 
         .delete-btn,
-        .add-app-btn {
+        .app-table-toggle {
             display: none;
             cursor: pointer;
             margin-left: 5px;
         }
 
-        .add-app-btn:checked .app-container {
-            display: block;
+        .address-cell:hover .app-table-toggle,
+        .address-cell:hover .delete-btn {
+            display: inline-block;
         }
+
+        .remove-app-btn {
+            margin-left: 10px;
+        }
+
+        .add-new-app-form {
+            display: flex;
+        }
+
+        .new-app-input {
+            font-family: 'PT Mono', sans-serif;
+            width: 85%;
+            padding: 0px;
+            margin: 0px;
+        }
+
+        .add-btn {}
     </style>
 </head>
 
@@ -148,8 +177,8 @@
         </tbody>
     </table>
     <form id="addAddressForm">
-        <input type="text" id="newAddress" class="address-input" placeholder="Введите новый IP или DNS адрес">
-        <button type="submit">+</button>
+        <input type="text" id="newAddress" class="add-new-address-input" placeholder="Введите новый IP или DNS адрес">
+        <button type="submit" class="add-new-address-button">+</button>
     </form>
 
     <script>
@@ -186,6 +215,52 @@
             } else {
                 alert('Введите хотя бы один IP или DNS адрес');
             }
+        }
+
+        function updateStatus(address, object) {
+            const previousStatus = object.checked;
+
+            fetch('/updateStatus', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    address: address,
+                    status: object.checked,
+                }),
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        object.checked = !previousStatus;
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log(JSON.stringify(data));
+                })
+                .catch(error => {
+                    console.error(JSON.stringify(error));
+                });
+        }
+
+        function deleteAddress(event, address) {
+            event.stopPropagation();
+            fetch('/deleteAddress', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ address: address }),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(`Адрес успешно удален (${data})`);
+                    fetchAddresses();
+                })
+                .catch(error => {
+                    console.error(`Ошибка при удалении адреса (${error})`);
+                });
         }
 
         function fetchAddresses() {
@@ -235,9 +310,11 @@
                         addressDiv.textContent = item.address;
 
                         const addAppBtn = document.createElement('div');
-                        addAppBtn.classList.add("add-app-btn");
+                        addAppBtn.classList.add("app-table-toggle");
                         addAppBtn.innerHTML = "[+]";
-                        addAppBtn.addEventListener('click', () => openAppInterface());
+                        addAppBtn.addEventListener('click', () => {
+                            newRow.classList.contains('expanded') ? deleteAppInterface(newRow) : showAppInterface(newRow, item.address);
+                        });
 
                         const deleteBtn = document.createElement('div');
                         deleteBtn.classList.add('delete-btn');
@@ -252,10 +329,6 @@
                         addressCell.appendChild(addressDiv);
                         addressCell.appendChild(actionsDiv);
 
-                        const addAppContainer = document.createElement('div');
-                        addAppContainer.classList.add("app-container");
-                        addressCell.appendChild(addAppContainer);
-
                         newRow.appendChild(statusCell);
                         newRow.appendChild(addressCell);
 
@@ -267,56 +340,93 @@
                 });
         }
 
+        // Связанные приложения
+        function showAppInterface(obj, ipAddress) {
+            obj.classList.add('expanded');
+            obj.querySelector('.app-table-toggle').textContent = '[-]';
+            const appTable = document.createElement('div');
+            appTable.classList.add('app-table');
 
-        function updateStatus(address, object) {
-            const previousStatus = object.checked;
+            appTable.innerHTML =
+                `<ul class="app-list"></ul>
+                <div class="add-new-app-form">
+                    <input class="new-app-input" type="text" placeholder="Enter IP-related applications">
+                    <div class='add-btn'>[+]</div>
+                </div>`;
 
-            fetch('/updateStatus', {
+            obj.appendChild(appTable);
+
+            const addBtn = appTable.querySelector('.add-btn');
+
+            addBtn.addEventListener('click', () => {
+                const appNameInput = appTable.querySelector('.new-app-input[type="text"]');
+                const appName = appNameInput.value.trim();
+                if (appName) {
+                    addRelatedApp(ipAddress, appName);
+                    appNameInput.value = '';
+                } else {
+                    console.log('Введите название приложения');
+                }
+            });
+
+            fetchRelatedApps(ipAddress);
+        }
+
+        function deleteAppInterface(obj) {
+            obj.classList.remove('expanded');
+            obj.querySelector('.app-table-toggle').textContent = '[+]';
+            const appTable = obj.querySelector('.app-table');
+            appTable.remove();
+        }
+
+        function addRelatedApp(ipAddress, appName) {
+            fetch('/related-apps', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    address: address,
-                    status: object.checked,
-                }),
-            })
-                .then(response => {
-                    if (!response.ok) {
-                        object.checked = !previousStatus;
-                    }
+                    ipAddress: ipAddress,
+                    appName: appName
+                })
+            }).then(response => {
+                if (response.ok) {
                     return response.json();
-                })
-                .then(data => {
-                    console.log(JSON.stringify(data));
-                })
-                .catch(error => {
-                    console.error(JSON.stringify(error));
-                });
+                } else {
+                    console.error('Ошибка добавления приложения: ' + response.statusText);
+                }
+            }).then(data => {
+                console.log('Успешное добавление приложения:', data);
+                fetchRelatedApps(ipAddress);
+            }).catch(error => {
+                console.error('Ошибка:', error);
+            });
         }
 
-
-        function deleteAddress(event, address) {
-            event.stopPropagation();
-            fetch('/deleteAddress', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ address: address }),
-            })
-                .then(response => response.json())
+        function fetchRelatedApps(ipAddress) {
+            fetch(`/related-apps/${ipAddress}`)
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    } else {
+                        console.error('Ошибка получения связанных приложений: ' + response.statusText);
+                    }
+                })
                 .then(data => {
-                    console.log(`Адрес успешно удален (${data})`);
-                    fetchAddresses();
+                    console.log('Связанные приложения:', data);
+
+                    const appList = document.querySelector('.app-list');
+                    appList.innerHTML = '';
+
+                    data.relatedApps.forEach(app => {
+                        const li = document.createElement('li');
+                        li.textContent = app;
+                        appList.appendChild(li);
+                    });
                 })
                 .catch(error => {
-                    console.error(`Ошибка при удалении адреса (${error})`);
+                    console.error('Ошибка:', error);
                 });
-        }
-
-        function openAppInterface() {
-            console.log('updateAppDiv() used')
         }
 
         fetchAddresses();
